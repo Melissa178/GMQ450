@@ -1,1 +1,3 @@
-# GMQ450
+# GMQ450-TP2
+
+Cette carte web présente les résultats des élections générales québécoises de 2022 en affichant chaque circonscription électorale colorée selon le parti politique gagnant. La carte est réalisée avec OpenLayers et propose trois fonds de carte différents (OSM, Stamen et Esri) entre lesquels l’utilisateur peut basculer. Les polygones des circonscriptions sont automatiquement stylisés en fonction du parti du candidat élu. L’utilisateur peut cliquer sur n’importe quelle circonscription pour afficher une fenêtre contextuelle contenant des informations sur la circonscription et le parti gagnant. Des contrôles supplémentaires, tels qu’une légende, une barre d’échelle et l’affichage de la position de la souris, facilitent l’interprétation et la navigation sur la carte.
