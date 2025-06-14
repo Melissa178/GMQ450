@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quebec Elections 2022 - Simple Map</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.4.0/ol.css">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #map { width: 90vw; height: 75vh; margin: auto; border: 1px solid #444; }
+        #legend, #layer-switcher, #popup {
+            position: absolute; background: #fff; border: 1px solid #ccc; border-radius: 6px;
+            padding: 8px 12px; font-size: 14px; box-shadow: 2px 2px 8px #aaa; z-index: 1000;
+        }
+        #legend { top: 100px; left: 30px; }
+        #layer-switcher { top: 30px; left: 30px; }
+        #popup { display: none; min-width: 180px; }
+        /* --- Make ZoomSlider horizontal and position it top right --- */
+        .ol-zoomslider {
+            top: 28px !important;
+            right: 30px !important;
+            left: auto !important;
+            width: 200px !important;
+            height: 22px !important;
+            background: #000;
+            border-radius: 10px;
+            z-index: 1100 !important;
+            box-shadow: 2px 2px 8px #aaa;
+            display: flex;
+            align-items: center;
+        }
+        .ol-zoomslider-thumb {
+            width: 18px !important;
+            height: 18px !important;
+            top: 2px !important;
+        }
+        .ol-control.ol-zoom {
+            top: 60px !important;
+            right: 36px !important;
+            left: auto !important;
+        }
+        /* Make sure the slider is above the map controls */
+    </style>
+</head>
+<body>
+    <h2 style="text-align:center;">Quebec General Elections 2022</h2>
+    <div style="text-align:center;">Click a district for info. Switch base maps or use legend below.</div>
+    <div id="map"></div>
+    <div id="legend">
+        <b>Légende:</b><br>
+        <span style="display:inline-block;width:16px;height:10px;background:#ff9900;border:1px solid #aaa;"></span> CAQ-EFL<br>
+        <span style="display:inline-block;width:16px;height:10px;background:#ff7f00;border:1px solid #aaa;"></span> CAQ<br>
+        <span style="display:inline-block;width:16px;height:10px;background:#e31a1c;border:1px solid #aaa;"></span> PLQ<br>
+        <span style="display:inline-block;width:16px;height:10px;background:#33a02c;border:1px solid #aaa;"></span> QS<br>
+        <span style="display:inline-block;width:16px;height:10px;background:#1f78b4;border:1px solid #aaa;"></span> PQ<br>
+    </div>
+    <div id="layer-switcher">
+        <label><input type="radio" name="basemap" value="osm" checked> OSM</label>
+        <label><input type="radio" name="basemap" value="stamen"> Stamen</label>
+        <label><input type="radio" name="basemap" value="esri"> Esri</label>
+    </div>
+    <div id="popup"></div>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.4.0/dist/ol.js"></script>
+    <script>
+        // Basemap layers
+        const osm = new ol.layer.Tile({ source: new ol.source.OSM(), visible: true });
+        const stamen = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png' }), visible: false });
+        const esri = new ol.layer.Tile({ source: new ol.source.XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}' }), visible: false });
+
+        // GeoJSON Layer with party coloring
+        const electionLayer = new ol.layer.Vector({
+            source: new ol.source.Vector({ url: 'candidats_gei.geojson', format: new ol.format.GeoJSON() }),
+            style: function(feature) {
+                let party = feature.get('candidats_filtre_Abr�viation du parti politique');
+                let color = '#ccc';
+                if (party && party.includes('C.A.Q.-E.F.L.')) color = '#ff9900';
+                else if (party && party.includes('C.A.Q'))    color = '#ff7f00';
+                else if (party && party.includes('P.L.Q'))    color = '#e31a1c';
+                else if (party && party.includes('Q.S'))      color = '#33a02c';
+                else if (party && party.includes('P.Q'))      color = '#1f78b4';
+                return new ol.style.Style({
+                    fill: new ol.style.Fill({ color: color }),
+                    stroke: new ol.style.Stroke({ color: '#222', width: 1.3 })
+                });
+            }
+        });
+
+        // Map and controls, now with horizontal ZoomSlider at top right!
+        const map = new ol.Map({
+            target: 'map',
+            layers: [osm, stamen, esri, electionLayer],
+            view: new ol.View({ center: ol.proj.fromLonLat([-71.5, 47.0]), zoom: 7 }),
+            controls: ol.control.defaults.defaults().extend([
+                new ol.control.ScaleLine(),
+                new ol.control.MousePosition(),
+                new ol.control.ZoomSlider({ orientation: 'horizontal' }), // Horizontal slider
+                new ol.control.Zoom()        // Zoom +/-
+            ])
+        });
+
+        // Layer switcher
+        document.querySelectorAll('input[name="basemap"]').forEach(input => {
+            input.addEventListener('change', function() {
+                osm.setVisible(this.value === "osm");
+                stamen.setVisible(this.value === "stamen");
+                esri.setVisible(this.value === "esri");
+            });
+        });
+
+        // Popup on click
+        const popup = document.getElementById('popup');
+        map.on('singleclick', function(evt) {
+            let found = false;
+            map.forEachFeatureAtPixel(evt.pixel, function(feature) {
+                let district = feature.get('NM_CEP') || 'Inconnu';
+                let party = feature.get('candidats_filtre_Abr�viation du parti politique') || 'Inconnu';
+                popup.innerHTML = `<b>Circonscription:</b> ${district}<br><b>Parti gagnant:</b> ${party}`;
+                popup.style.display = 'block';
+                popup.style.left = (evt.originalEvent.pageX + 10) + 'px';
+                popup.style.top = (evt.originalEvent.pageY - 30) + 'px';
+                found = true;
+            });
+            if (!found) popup.style.display = 'none';
+        });
+
+        // Hide popup when not over a feature
+        map.on('pointermove', function(evt) {
+            if (!map.hasFeatureAtPixel(evt.pixel)) popup.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
